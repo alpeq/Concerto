@@ -6,6 +6,7 @@ import yaml
 import time
 import rtmidi
 import queue
+import heapq
 
 from Concerto.example_texel import setup_parameters
 from texel_api import *
@@ -75,9 +76,10 @@ class NeuroListener(Subject):
         for t,id in zip(self.times, self.ids):
             #time.sleep() preproccess the alld diff= t -(t-1) before hand does sleep work at ms?
             self._event = id
-            self._duration = (t-tm1)/1000000
+            #self._duration = (t-tm1)/1000000
             self.notify()
             tm1 = t
+            #time.sleep(0.001)
 
 
 class NeuroListener_Texel(NeuroListener):
@@ -109,23 +111,25 @@ class NeuroListener_Texel(NeuroListener):
         pass
 
 
-
 class OrchestraGenerator(Observer):
-    def __init__(self, params, debug=False, default_duration=0.1):
+    def __init__(self, params, debug=False, default_duration=0.1, default_velocity=100, max_queue=500):
         self.debug = debug
         self.notes_id = params.id
         self.params_dict = params.params_dict
         self.default_duration = default_duration
+        self.default_velocity = default_velocity
+        self.max_queue = max_queue
 
-        # MIDI setup
         self.midiout = rtmidi.MidiOut()
         self.setup_midi_comm(0)
 
-        # Thread-safe queue for (note_id, duration)
-        self.note_queue = queue.Queue()
+        # Deduplication: only latest per note_id
+        self.event_queue = queue.Queue()
+        self.pending_notes = {}   # note_id -> (note_id, duration, velocity)
+        self.note_off_heap = []   # (timestamp, note_id)
         self.running = True
 
-        # Start background worker thread
+        # Worker thread
         self.worker = threading.Thread(target=self._player_loop, daemon=True)
         self.worker.start()
 
@@ -137,7 +141,6 @@ class OrchestraGenerator(Observer):
             self.midiout.open_virtual_port("My virtual output")
 
     def cleanup(self):
-        """Stop worker and close MIDI port cleanly."""
         self.running = False
         self.worker.join()
         if self.midiout.is_port_open():
@@ -149,30 +152,53 @@ class OrchestraGenerator(Observer):
         self.midiout.send_message([0xB0, 123, 0])
 
     def update(self, subject: "Subject"):
-        """Observer callback: enqueue note + duration without blocking."""
+        """Observer callback: enqueue latest event (note, duration, velocity)."""
         note_id = self.notes_id[subject._event]
-        #duration = getattr(subject, "_duration", self.default_duration)
+        #duration = getattr(subject, "duration", self.default_duration)
         duration = self.default_duration
+        velocity = getattr(subject, "velocity", self.default_velocity)
 
-        # Put (note, duration) into queue
-        self.note_queue.put((note_id, duration))
+        # Replace any pending event for this note_id
+        self.pending_notes[note_id] = (note_id, duration, velocity)
+
+        # Drop if too many different notes pending
+        if len(self.pending_notes) > self.max_queue:
+            oldest_note = next(iter(self.pending_notes))
+            del self.pending_notes[oldest_note]
+
+        # Push note_id marker to queue
+        self.event_queue.put(note_id)
 
         if self.debug:
-            print(f"Queued note {note_id} for {duration:.2f}s")
+            print(f"Queued/replaced note {note_id}, vel={velocity}, dur={duration:.2f}s")
 
     def _player_loop(self):
-        """Background thread: plays notes with timing control."""
         while self.running:
+            now = time.time()
+
+            # Process new events
             try:
-                note_id, duration = self.note_queue.get(timeout=0.1)
+                while True:
+                    note_id = self.event_queue.get_nowait()
+
+                    if note_id not in self.pending_notes:
+                        continue
+
+                    note_id, duration, velocity = self.pending_notes.pop(note_id)
+
+                    self.midiout.send_message([0x90, note_id, velocity])
+                    heapq.heappush(self.note_off_heap, (now + duration, note_id))
+                    if self.debug:
+                        print(f"Note on {note_id}, vel={velocity}, off at {now + duration:.3f}")
             except queue.Empty:
-                continue
+                pass
 
-            note_on = [0x90, note_id, 120]
-            note_off = [0x80, note_id, 0]
+            # Process note_off events that are due
+            while self.note_off_heap and self.note_off_heap[0][0] <= now:
+                _, note_id = heapq.heappop(self.note_off_heap)
+                self.midiout.send_message([0x80, note_id, 0])
+                if self.debug:
+                    print(f"Note off {note_id} at {now:.3f}")
 
-            self.midiout.send_message(note_on)
-            time.sleep(duration)  # dynamic note length
-            self.midiout.send_message(note_off)
+            time.sleep(0.001)  # avoid 100% CPU spin
 
-            self.note_queue.task_done()

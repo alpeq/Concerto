@@ -15,8 +15,8 @@ n_id = [1, 10, 20, 10, 1, 20, 10, 1, 20, 10, 1, 20, 10, 1, 20, 10, 1, 10, 20, 1,
 
 config_sheet = Config('helpers/config_orchestra.yaml', 'brain_to_wave')
 
-hwdummy_sub = NeuroListener(timestamps, n_id)
-midi_gen = OrchestraGenerator(config_sheet, debug=True)
+hwdummy_sub = NeuroListener(timestamps*100, n_id*100) # it does not handle 1000, max_queue 300 does not help
+midi_gen = OrchestraGenerator(config_sheet, debug=False)
 
 hwdummy_sub.attach(midi_gen)
 hwdummy_sub.start_streaming_events()
