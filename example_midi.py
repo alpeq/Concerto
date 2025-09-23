@@ -12,10 +12,10 @@ else:
 
 with midiout:
     # channel 1, middle C, velocity 112
-    note_on = [0x90, 60, 112]
+    note_on = [0x90, 60, 120]
     note_off = [0x80, 60, 10]
     midiout.send_message(note_on)
-    time.sleep(5.5)
+    time.sleep(0.5)
     midiout.send_message(note_off)
     time.sleep(0.1)
 
