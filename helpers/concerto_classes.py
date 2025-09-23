@@ -5,8 +5,7 @@ from typing import List
 import yaml
 import time
 import rtmidi
-
-from voluptuous import Object
+import queue
 
 from Concerto.example_texel import setup_parameters
 from texel_api import *
@@ -72,10 +71,13 @@ class NeuroListener(Subject):
         ''' Class to fill per Hardware platform inherited'''
         pass
     def start_streaming_events(self):
+        tm1 = self.times[0]
         for t,id in zip(self.times, self.ids):
             #time.sleep() preproccess the alld diff= t -(t-1) before hand does sleep work at ms?
             self._event = id
+            self._duration = (t-tm1)/1000000
             self.notify()
+            tm1 = t
 
 
 class NeuroListener_Texel(NeuroListener):
@@ -107,43 +109,70 @@ class NeuroListener_Texel(NeuroListener):
         pass
 
 
-#message =
-#    note_on = [0x90, 60, 120]
-#    note_off = [0x80, 60, 10]
+
 class OrchestraGenerator(Observer):
-    def __init__(self, params, debug=False):
+    def __init__(self, params, debug=False, default_duration=0.1):
         self.debug = debug
         self.notes_id = params.id
         self.params_dict = params.params_dict
+        self.default_duration = default_duration
+
+        # MIDI setup
         self.midiout = rtmidi.MidiOut()
         self.setup_midi_comm(0)
 
+        # Thread-safe queue for (note_id, duration)
+        self.note_queue = queue.Queue()
+        self.running = True
+
+        # Start background worker thread
+        self.worker = threading.Thread(target=self._player_loop, daemon=True)
+        self.worker.start()
+
     def setup_midi_comm(self, port_id):
         available_ports = self.midiout.get_ports()
-        if self.debug:
-            print(available_ports)
         if available_ports:
             self.midiout.open_port(port_id)
         else:
             self.midiout.open_virtual_port("My virtual output")
 
     def cleanup(self):
+        """Stop worker and close MIDI port cleanly."""
+        self.running = False
+        self.worker.join()
         if self.midiout.is_port_open():
             self.midiout.close_port()
         del self.midiout
 
-    def build_message_sheet(self):
-        pass
     def silence(self):
-        self.midiout.send_message([0xB0,123,0]) # B0 or cc
+        """All notes off (MIDI CC 123)."""
+        self.midiout.send_message([0xB0, 123, 0])
 
-    def update(self, subject: Subject):
-        self.neuron_id = self.notes_id[subject._event]
-        note_on = [0x90, self.neuron_id, 120]
-        note_off = [0x80, self.neuron_id, 0]
-        self.midiout.send_message(note_on)
-        sleep(0.001)
-        self.midiout.send_message(note_off)
-        # Send on message
+    def update(self, subject: "Subject"):
+        """Observer callback: enqueue note + duration without blocking."""
+        note_id = self.notes_id[subject._event]
+        #duration = getattr(subject, "_duration", self.default_duration)
+        duration = self.default_duration
+
+        # Put (note, duration) into queue
+        self.note_queue.put((note_id, duration))
+
         if self.debug:
-            print(self.neuron_id)
+            print(f"Queued note {note_id} for {duration:.2f}s")
+
+    def _player_loop(self):
+        """Background thread: plays notes with timing control."""
+        while self.running:
+            try:
+                note_id, duration = self.note_queue.get(timeout=0.1)
+            except queue.Empty:
+                continue
+
+            note_on = [0x90, note_id, 120]
+            note_off = [0x80, note_id, 0]
+
+            self.midiout.send_message(note_on)
+            time.sleep(duration)  # dynamic note length
+            self.midiout.send_message(note_off)
+
+            self.note_queue.task_done()
