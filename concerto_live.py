@@ -57,13 +57,16 @@ def main_texel():
 
     config_sheet = Config('helpers/config_orchestra.yaml', 'brain_to_wave')
 
-    hwtexel_sub = NeuroListener_Texel(parameters, flags, 0, [1,10,20])#[1,20])  # it does not handle 1000, max_queue 300 does not help
+    hwtexel_sub = NeuroListener_Texel(parameters, flags, 0, [1,10,20,40,5])#[1,20])  # it does not handle 1000, max_queue 300 does not help
     # Neuron list only used for configuration not for reading
     midi_gen = OrchestraGenerator(config_sheet, debug=False)
 
     hwtexel_sub.attach(midi_gen)
     hwtexel_sub.start_event_listener()
-    hwtexel_sub.start_stimulation()
+    time.sleep(1)
+    hwtexel_sub.start_stimulation([1,5,10])
+    time.sleep(1)
+    hwtexel_sub.start_stimulation([20,40])
 
     print("Press Enter to exit...")
     input()

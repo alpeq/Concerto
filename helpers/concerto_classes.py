@@ -100,13 +100,14 @@ class NeuroListener_Texel(Subject):
 
     def _send_spikes(self):
         for neuron_id in self.neulist:
-            for i in range(100):
+            for i in range(1000):
 #                if random.random() < 0.5:
                 self.chip.send_spike(core=self.core, neuron_idx=neuron_id, synapse_idx=(0))
                 self.chip.send_spike(core=self.core, neuron_idx=neuron_id, synapse_idx=(0))
 
-    def start_stimulation(self):
+    def start_stimulation(self, neuron_list):
         self.stimulator.start()
+        self.n_list = neuron_list
 
     def clean(self):
         # Reset Chip
