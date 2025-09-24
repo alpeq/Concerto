@@ -60,10 +60,9 @@ def main():
     time.sleep(1)
 
     # Setup neurons and monitor
-
     neulist = [1,10,20]
 
-    for neuron_id in [1,10,20]:
+    for neuron_id in neulist:
         chip.activate_neuron_monitor(core=0, neuron_idx=neuron_id)
         chip.activate_synapse_monitor(core=0, neuron_idx=neuron_id, synapse_idx=0)
         setup_parameters(chip, neuron_id)
