@@ -5,7 +5,7 @@ Concerto for Texel Chip
 
 from texel_params import *
 from helpers.concerto_classes import *
-
+import pickle
 
 def main_dummy_input():
     # hardware_subject = NeuroListener_Texel(parameters, flags)
@@ -76,7 +76,44 @@ def main_texel():
     midi_gen.silence()
     midi_gen.cleanup()
 
+def merge_and_sort(ts_lists, id_lists):
+    # Flatten into list of (time, id) pairs
+    events = []
+    for t_list, i_list in zip(ts_lists, id_lists):
+        #events.extend(zip(t_list, i_list))
+        events.extend((float(t), i) for t, i in zip(t_list, i_list))
+    # Sort by time
+    events.sort(key=lambda x: x[0])
+    # Unpack back into two lists
+    times, ids = zip(*events)
+    return list(times), list(ids)
+
+def read_network_output(path):
+    with open(path, "rb") as f:
+        obj = pickle.load(f)
+    ts = obj[0]
+    ids = obj[1]
+    return ts, ids
+
+def main_network_replay():
+
+    config_sheet = Config('helpers/config_orchestra.yaml', 'brain_to_wave')
+
+    (ts,ids) = read_network_output('data/test__1.pkl')
+    tstamp_list, ids_list = merge_and_sort(ts, ids)
+    hwdummy_sub = NeuroListener(tstamp_list, ids_list)  # it does not handle 1000, max_queue 300 does not help
+    midi_gen = OrchestraGenerator(config_sheet, population=True, debug=False)
+
+    hwdummy_sub.attach(midi_gen)
+    hwdummy_sub.start_streaming_events()
+
+    print("Press Enter to exit...")
+    input()
+    print("Exiting...")
+    midi_gen.silence()
+    midi_gen.cleanup()
 
 if __name__ == "__main__":
-    main_texel()
+    #main_texel()
     #main_dummy_input()
+    main_network_replay()

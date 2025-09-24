@@ -169,9 +169,9 @@ class NeuroListener_Texel(Subject):
 
 ''' OBSERVERS - Midi Generator '''
 class OrchestraGenerator(Observer):
-    def __init__(self, params, debug=False, default_duration=0.001, default_velocity=100, max_queue=500):
+    def __init__(self, params, population=False, debug=False, default_duration=0.001, default_velocity=100, max_queue=500):
         self.debug = debug
-        self.notes_id = params.id
+        self.notes_id = (params.id if not population else params.population)
         self.params_dict = params.params_dict
         self.default_duration = default_duration
         self.default_velocity = default_velocity
@@ -211,7 +211,8 @@ class OrchestraGenerator(Observer):
     def update(self, subject: "Subject"):
         """Observer callback: enqueue latest event (note, duration, velocity)."""
         #print(subject._event)
-        note_id = (self.notes_id.get(subject._event) if not None else int(subject._event))
+
+        note_id = self.notes_id[subject._event]
         #duration = getattr(subject, "duration", self.default_duration)
         duration = self.default_duration
         velocity = getattr(subject, "velocity", self.default_velocity)
