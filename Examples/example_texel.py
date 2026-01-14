@@ -1,3 +1,13 @@
+"""
+Project: Concerto
+Description: Example to connect to Texel chip and collect events
+
+Code owner: Alejandro Pequeno-Zurro, https://github.com/alpeq/Concerto
+
+Contributors: Adrian Whatley, Mirco Tincani
+
+License MIT
+"""
 import sys
 #sys.path.append("..")
 import matplotlib.pyplot as plt

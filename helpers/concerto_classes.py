@@ -1,3 +1,14 @@
+"""
+Project: Concerto
+Description: Implements a Topic/Observer architecture where real-time neuromorphic hardware messages (Texel/DYNAP-SE)
+            are converted into MIDI events using a queued, dropout-controlled pipeline.
+
+Code owner: Alejandro Pequeno-Zurro, https://github.com/alpeq/Concerto
+
+Contributors: Adrian Whatley, Mirco Tincani
+
+License MIT
+"""
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 from abc import ABC, abstractmethod
@@ -7,9 +18,7 @@ import time
 import rtmidi
 import queue
 import heapq
-import random
 
-from Concerto.example_texel import setup_parameters
 #from Samna_demo import chip_id
 from texel_api import *
 
@@ -87,7 +96,6 @@ class NeuroListener(Subject):
             self.notify()
             tm1 = t
             time.sleep(self.delay_streaming)
-
 
 class NeuroListener_Texel(Subject):
     """

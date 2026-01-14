@@ -1,3 +1,13 @@
+"""
+Project: Concerto
+Description: Example to test midi generation
+
+Code owner: Alejandro Pequeno-Zurro, https://github.com/alpeq/Concerto
+
+Contributors: Adrian Whatley, Mirco Tincani
+
+License MIT
+"""
 import time
 import rtmidi
 

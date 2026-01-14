@@ -1,3 +1,14 @@
+"""
+Project: Concerto
+Description: Example to connect to Dynapse and collect spike events
+
+Code owner: Alejandro Pequeno-Zurro, https://github.com/alpeq/Concerto
+
+Contributors: Adrian Whatley, Mirco Tincani
+
+License MIT
+"""
+
 import sys
 
 dynapse1_path = "./dynap-se1"

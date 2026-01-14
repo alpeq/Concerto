@@ -1,7 +1,15 @@
 """
-Concerto for Texel Chip
-@alpeq
+Project: Concerto
+Description: The framework enables real-time interaction between neuromorphic hardware devices (Texel, DYNAP-SE) and
+            electronic musical instruments by translating neural events into MIDI messages
+
+Code owner: Alejandro Pequeno-Zurro, https://github.com/alpeq/Concerto
+
+Contributors: Adrian Whatley, Mirco Tincani
+
+License MIT
 """
+
 import time
 
 from pyparsing import delimitedList
@@ -10,9 +18,28 @@ from texel_params import *
 from helpers.concerto_classes import *
 import pickle
 
+
+def merge_and_sort(ts_lists, id_lists):
+    # Flatten into list of (time, id) pairs
+    events = []
+    for t_list, i_list in zip(ts_lists, id_lists):
+        #events.extend(zip(t_list, i_list))
+        events.extend((float(t), i) for t, i in zip(t_list, i_list))
+    # Sort by time
+    events.sort(key=lambda x: x[0])
+    # Unpack back into two lists
+    times, ids = zip(*events)
+    return list(times), list(ids)
+
+def read_network_output(path):
+    with open(path, "rb") as f:
+        obj = pickle.load(f)
+    ts = obj[0]
+    ids = obj[1]
+    return ts, ids
+
 def main_dummy_input():
     # hardware_subject = NeuroListener_Texel(parameters, flags)
-    # is timestamps in microseconds? diff() /1000 and sleep? is sleep in millis?
 
     timestamps = [1325, 1648, 2131, 4874, 5194, 6151, 8340, 8871, 10334, 11881, 12831, 14678, 15495, 16900, 19136,
                   19457, 21081, 22907, 23726, 25340, 26701, 28418, 29682, 30545, 33208, 34104, 34447, 38078, 38398,
@@ -83,25 +110,6 @@ def main_texel():
     midi_gen.silence()
     midi_gen.cleanup()
 
-def merge_and_sort(ts_lists, id_lists):
-    # Flatten into list of (time, id) pairs
-    events = []
-    for t_list, i_list in zip(ts_lists, id_lists):
-        #events.extend(zip(t_list, i_list))
-        events.extend((float(t), i) for t, i in zip(t_list, i_list))
-    # Sort by time
-    events.sort(key=lambda x: x[0])
-    # Unpack back into two lists
-    times, ids = zip(*events)
-    return list(times), list(ids)
-
-def read_network_output(path):
-    with open(path, "rb") as f:
-        obj = pickle.load(f)
-    ts = obj[0]
-    ids = obj[1]
-    return ts, ids
-
 def main_network_replay():
 
     config_sheet = Config('helpers/config_orchestra.yaml', 'brain_to_wave')
@@ -122,5 +130,5 @@ def main_network_replay():
 
 if __name__ == "__main__":
     #main_dummy_input()
-    main_network_replay()
-    #main_texel()
+    #main_network_replay()
+    main_texel()
