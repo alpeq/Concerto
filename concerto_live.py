@@ -2,6 +2,9 @@
 Concerto for Texel Chip
 @alpeq
 """
+import time
+
+from pyparsing import delimitedList
 
 from texel_params import *
 from helpers.concerto_classes import *
@@ -56,17 +59,21 @@ def main_dummy_input():
 def main_texel():
 
     config_sheet = Config('helpers/config_orchestra.yaml', 'brain_to_wave')
-
-    hwtexel_sub = NeuroListener_Texel(parameters, flags, 0, [1,10,20,40,5])#[1,20])  # it does not handle 1000, max_queue 300 does not help
+    neuron_list = [1,5,10,15,20,35,40,50,66]
+    hwtexel_sub = NeuroListener_Texel(parameters, flags, 0, neuron_list)#[1,20])  # it does not handle 1000, max_queue 300 does not help
     # Neuron list only used for configuration not for reading
     midi_gen = OrchestraGenerator(config_sheet, debug=False)
 
     hwtexel_sub.attach(midi_gen)
     hwtexel_sub.start_event_listener()
-    time.sleep(1)
-    hwtexel_sub.start_stimulation([1,5,10])
-    time.sleep(1)
-    hwtexel_sub.start_stimulation([20,40])
+    #print("Stimulate {}".format(neuron_list[:3]))
+    hwtexel_sub.start_stimulation(neuron_list[:3])
+    #time.sleep(3)
+    print("Stimulate {}".format(neuron_list[3:6]))
+    hwtexel_sub.stimulate(neuron_list[3:6])
+    #time.sleep(3)
+    hwtexel_sub.stimulate(neuron_list[6:9])
+    print("Stimulate {}".format(neuron_list[6:9]))
 
     print("Press Enter to exit...")
     input()
@@ -99,9 +106,9 @@ def main_network_replay():
 
     config_sheet = Config('helpers/config_orchestra.yaml', 'brain_to_wave')
 
-    (ts,ids) = read_network_output('data/test__1.pkl')
+    (ts,ids) = read_network_output('data/net_states_sparse.pkl')#
     tstamp_list, ids_list = merge_and_sort(ts, ids)
-    hwdummy_sub = NeuroListener(tstamp_list, ids_list)  # it does not handle 1000, max_queue 300 does not help
+    hwdummy_sub = NeuroListener(tstamp_list, ids_list, delay=0.001)  # it does not handle 1000, max_queue 300 does not help
     midi_gen = OrchestraGenerator(config_sheet, population=True, debug=False)
 
     hwdummy_sub.attach(midi_gen)
@@ -114,6 +121,6 @@ def main_network_replay():
     midi_gen.cleanup()
 
 if __name__ == "__main__":
-    #main_texel()
     #main_dummy_input()
     main_network_replay()
+    #main_texel()

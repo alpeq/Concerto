@@ -59,11 +59,15 @@ class Observer(ABC):
 
 class NeuroListener(Subject):
     ''' Dummy class with list of events times and ids '''
-    def __init__(self, times, ids):
+    def __init__(self, times, ids, delay=0.005, default_velocity=100):
         super().__init__()
         self.times = times
         self.ids = ids
         self._event = None
+        self.delay_streaming = delay
+        self.default_velocity = default_velocity
+        self.silent_notes = [i for i in range(65,81)]
+        self.silent_velocity = 0
     def setup(self):
         ''' Setup the port to connect '''
         pass
@@ -78,10 +82,11 @@ class NeuroListener(Subject):
         for t,id in zip(self.times, self.ids):
             #time.sleep() preproccess the alld diff= t -(t-1) before hand does sleep work at ms?
             self._event = id
-            #self._duration = (t-tm1)/1000000
+            self._duration = (t-tm1)/1000000
+            self._velocity = ( self.silent_velocity if id in self.silent_notes else self.default_velocity)
             self.notify()
             tm1 = t
-            time.sleep(0.005)
+            time.sleep(self.delay_streaming)
 
 
 class NeuroListener_Texel(Subject):
@@ -99,14 +104,18 @@ class NeuroListener_Texel(Subject):
         self._streaming_flag = True
 
     def _send_spikes(self):
-        for neuron_id in self.neulist:
-            for i in range(1000):
-#                if random.random() < 0.5:
-                self.chip.send_spike(core=self.core, neuron_idx=neuron_id, synapse_idx=(0))
-                self.chip.send_spike(core=self.core, neuron_idx=neuron_id, synapse_idx=(0))
+        while True:
+            for neuron_id in self.neulist:
+                for i in range(10):
+    #                if random.random() < 0.5:
+                    self.chip.send_spike(core=self.core, neuron_idx=neuron_id, synapse_idx=(0))
+                    self.chip.send_spike(core=self.core, neuron_idx=neuron_id, synapse_idx=(0))
 
     def start_stimulation(self, neuron_list):
+        self.n_list = neuron_list
         self.stimulator.start()
+
+    def stimulate(self, neuron_list):
         self.n_list = neuron_list
 
     def clean(self):
@@ -122,7 +131,7 @@ class NeuroListener_Texel(Subject):
         for n in self.n_list:
             self.chip.activate_neuron_monitor(core=0, neuron_idx=n)
             self.chip.activate_synapse_monitor(core=0, neuron_idx=n, synapse_idx=0)
-        self.sample_parameter_network()
+        self.sample_parameter_network(self.n_list)
 
     def start_event_listener(self, debug=False) -> None:
         """
@@ -143,7 +152,7 @@ class NeuroListener_Texel(Subject):
             #time.sleep(0.005)
 
 
-    def sample_parameter_network(self):
+    def sample_parameter_network(self, neuron_list):
         self.chip.update_parameter(core=0, param="neuron_ref_NFI", value=100e-12)
         self.chip.update_parameter(core=0, param="neuron_gain_NFI", value=2e-12)
         self.chip.update_parameter(core=0, param="neuron_starve_NFI", value=1e-9)
@@ -160,8 +169,10 @@ class NeuroListener_Texel(Subject):
         self.chip.update_parameter(core=0, param='bypass_tail_w1_NFI', value=100e-9)
         self.chip.update_parameter(core=0, param='ahp_pw_PFI', value=1e-9)  # used to control post-pulse width
         self.chip.update_parameter(core=0, param='pw_read_pot_PFI', value=1e-9)  # used to control pre-pulse width
+        for neuron in neuron_list:
+            self.chip.set_synapse_weight(core=0, neuron_idx=neuron, synapse_idx=(0), value=1)
+        #self.chip.set_synapse_weight(core=0, neuron_idx=0, synapse_idx=(0), value=1)
 
-        self.chip.set_synapse_weight(core=0, neuron_idx=0, synapse_idx=(0), value=1)
 
     def stop_listener(self):
         self._streaming_flag = False
@@ -213,9 +224,9 @@ class OrchestraGenerator(Observer):
         #print(subject._event)
 
         note_id = self.notes_id[subject._event]
-        #duration = getattr(subject, "duration", self.default_duration)
-        duration = self.default_duration
-        velocity = getattr(subject, "velocity", self.default_velocity)
+        duration = getattr(subject, "_duration", self.default_duration)
+        #duration = self.default_duration
+        velocity = getattr(subject, "_velocity", self.default_velocity)
 
         # Replace any pending event for this note_id
         self.pending_notes[note_id] = (note_id, duration, velocity)
