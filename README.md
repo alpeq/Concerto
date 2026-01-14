@@ -23,7 +23,8 @@ CONCERTO connects to neuromorphic devices (e.g., TEXEL, DYNAP-SE) and converts r
 
 This project was conceptualized, designed, and built during the BICS/NCS 2025 Workshop
 by Alejandro Pequeno-Zurro, Adrian Whatley, and Mirco Tincani.
-<img src="imgs/concerto_poster.jpg" alt="drawing" width="300"/>
+
+<img src="imgs/concerto_poster.jpg" alt="drawing" width="400"/>
 
 # Requirements
 * pip install python-rtmidi
